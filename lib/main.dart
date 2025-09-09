@@ -303,23 +303,65 @@ class _InspectionScreenState extends State<InspectionScreen> with AutomaticKeepA
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: _capturedImage != null
+                    child: _cameraController != null && _cameraController!.value.isInitialized
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(_capturedImage!, fit: BoxFit.cover),
+                            child: Stack(
+                              children: [
+                                // Live camera preview (always shown)
+                                Positioned.fill(
+                                  child: AspectRatio(
+                                    aspectRatio: _cameraController!.value.aspectRatio,
+                                    child: CameraPreview(_cameraController!),
+                                  ),
+                                ),
+                                // Captured image overlay (if exists)
+                                if (_capturedImage != null)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      width: 80,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.white, width: 2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.memory(_capturedImage!, fit: BoxFit.cover),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           )
-                        : _cameraController != null && _cameraController!.value.isInitialized
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CameraPreview(_cameraController!),
-                              )
-                            : const Center(child: Text('Camera not available')),
+                        : const Center(child: Text('Camera not available')),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: _takePicture,
-                    icon: const Icon(Icons.camera_alt),
-                    label: Text(_capturedImage != null ? 'Retake Photo' : 'Take Photo'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _takePicture,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Take Photo'),
+                      ),
+                      if (_capturedImage != null)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _capturedImage = null;
+                            });
+                          },
+                          icon: const Icon(Icons.clear),
+                          label: const Text('Clear Photo'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black87,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
