@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -452,6 +456,97 @@ class ReportScreen extends StatelessWidget {
 
   const ReportScreen({super.key, required this.inspectionItems});
 
+  Future<void> _generatePDF() async {
+    final pdf = pw.Document();
+
+    // Group items by room
+    final Map<String, List<InspectionItem>> groupedItems = {};
+    for (final item in inspectionItems) {
+      groupedItems.putIfAbsent(item.room, () => []).add(item);
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Text(
+                'House Inspection Report',
+                style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Text(
+              'Generated on: ${DateTime.now().toString().substring(0, 19)}',
+              style: pw.TextStyle(fontSize: 12, color: PdfColors.grey),
+            ),
+            pw.SizedBox(height: 20),
+            ...groupedItems.entries.map((entry) {
+              final room = entry.key;
+              final items = entry.value;
+              
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Header(
+                    level: 1,
+                    child: pw.Text(
+                      room,
+                      style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  ...items.map((item) => pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (item.imageData != null) ...[
+                        pw.Text(
+                          'Photo:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 5),
+                        pw.Image(
+                          pw.MemoryImage(item.imageData!),
+                          width: 200,
+                          height: 150,
+                          fit: pw.BoxFit.cover,
+                        ),
+                        pw.SizedBox(height: 10),
+                      ],
+                      if (item.comment.isNotEmpty) ...[
+                        pw.Text(
+                          'Comments:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 5),
+                        pw.Text(item.comment),
+                        pw.SizedBox(height: 10),
+                      ],
+                      pw.Text(
+                        'Added: ${item.timestamp.toString().substring(0, 19)}',
+                        style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                      ),
+                      pw.SizedBox(height: 15),
+                    ],
+                  )),
+                  pw.SizedBox(height: 20),
+                ],
+              );
+            }).toList(),
+          ];
+        },
+      ),
+    );
+
+    // Save and open the PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'House_Inspection_Report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (inspectionItems.isEmpty) {
@@ -474,64 +569,89 @@ class ReportScreen extends StatelessWidget {
       groupedItems.putIfAbsent(item.room, () => []).add(item);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: groupedItems.keys.length,
-      itemBuilder: (context, index) {
-        final room = groupedItems.keys.elementAt(index);
-        final items = groupedItems[room]!;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
+    return Column(
+      children: [
+        // PDF Generation Button
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _generatePDF,
+              icon: const Icon(Icons.picture_as_pdf),
+              label: const Text('Generate PDF Report'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                textStyle: const TextStyle(fontSize: 18),
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        // Report Content
+        Expanded(
+          child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  room,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
+            itemCount: groupedItems.keys.length,
+            itemBuilder: (context, index) {
+              final room = groupedItems.keys.elementAt(index);
+              final items = groupedItems[room]!;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (item.imageData != null) ...[
-                        const Text('Photo:', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            item.imageData!,
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (item.comment.isNotEmpty) ...[
-                        const Text('Comments:', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Text(item.comment),
-                        const SizedBox(height: 8),
-                      ],
                       Text(
-                        'Added: ${item.timestamp.toString().substring(0, 19)}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        room,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
-                      if (items.indexOf(item) < items.length - 1)
-                        const Divider(height: 32),
+                      const SizedBox(height: 16),
+                      ...items.map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (item.imageData != null) ...[
+                              const Text('Photo:', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  item.imageData!,
+                                  height: 200,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            if (item.comment.isNotEmpty) ...[
+                              const Text('Comments:', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text(item.comment),
+                              const SizedBox(height: 8),
+                            ],
+                            Text(
+                              'Added: ${item.timestamp.toString().substring(0, 19)}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            if (items.indexOf(item) < items.length - 1)
+                              const Divider(height: 32),
+                          ],
+                        ),
+                      )),
                     ],
                   ),
-                )),
-              ],
-            ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
