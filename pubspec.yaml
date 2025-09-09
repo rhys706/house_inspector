@@ -12,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.10.5+5
-  speech_to_text: ^6.6.1  # This version fixes the messenger issue
+  speech_to_text: 7.3.0 # Alternative stable version
   permission_handler: ^11.0.1
   path_provider: ^2.1.1
   pdf: ^3.10.4
