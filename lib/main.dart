@@ -121,7 +121,7 @@ class InspectionScreen extends StatefulWidget {
   State<InspectionScreen> createState() => _InspectionScreenState();
 }
 
-class _InspectionScreenState extends State<InspectionScreen> {
+class _InspectionScreenState extends State<InspectionScreen> with AutomaticKeepAliveClientMixin {
   CameraController? _cameraController;
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -247,7 +247,11 @@ class _InspectionScreenState extends State<InspectionScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
