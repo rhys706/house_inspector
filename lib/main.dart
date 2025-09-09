@@ -129,6 +129,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
   String _currentComment = '';
   Uint8List? _capturedImage;
   bool _speechAvailable = false;
+  late TextEditingController _commentController;
 
   final List<String> _rooms = [
     'Kitchen',
@@ -145,6 +146,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
   @override
   void initState() {
     super.initState();
+    _commentController = TextEditingController();
     _initializeCamera();
     _initializeSpeech();
   }
@@ -191,6 +193,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
         onResult: (result) {
           setState(() {
             _currentComment = result.recognizedWords;
+            _commentController.text = _currentComment;
           });
         },
       );
@@ -217,6 +220,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
       setState(() {
         _capturedImage = null;
         _currentComment = '';
+        _commentController.clear();
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,9 +232,17 @@ class _InspectionScreenState extends State<InspectionScreen> {
     }
   }
 
+  void _resetComments() {
+    setState(() {
+      _currentComment = '';
+      _commentController.clear();
+    });
+  }
+
   @override
   void dispose() {
     _cameraController?.dispose();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -250,7 +262,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
                   const Text('Select Room:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedRoom,
+                    value: _selectedRoom,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -259,7 +271,11 @@ class _InspectionScreenState extends State<InspectionScreen> {
                       value: room,
                       child: Text(room),
                     )).toList(),
-                    onChanged: (value) => setState(() => _selectedRoom = value!),
+                    onChanged: (value) => setState(() {
+                      _selectedRoom = value!;
+                      _currentComment = '';
+                      _commentController.clear();
+                    }),
                   ),
                 ],
               ),
@@ -319,12 +335,16 @@ class _InspectionScreenState extends State<InspectionScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     maxLines: 3,
+                    controller: _commentController,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'Type or dictate your comments...',
                     ),
-                    onChanged: (value) => setState(() => _currentComment = value),
-                    controller: TextEditingController(text: _currentComment),
+                    onChanged: (value) {
+                      setState(() {
+                        _currentComment = value;
+                      });
+                    },
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -339,6 +359,16 @@ class _InspectionScreenState extends State<InspectionScreen> {
                           backgroundColor: _isListening ? Colors.red : null,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _currentComment.isNotEmpty ? _resetComments : null,
+                        icon: const Icon(Icons.clear),
+                        label: const Text('Reset'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[300],
+                          foregroundColor: Colors.black87,
+                        ),
+                      ),
                       if (!_speechAvailable) ...[
                         const SizedBox(width: 8),
                         const Text('Speech not available', style: TextStyle(color: Colors.grey)),
@@ -350,7 +380,7 @@ class _InspectionScreenState extends State<InspectionScreen> {
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(height: 16),
 
           // Add to Report Button
           SizedBox(
